@@ -60,6 +60,9 @@ export class App {
         );
         this.gl.enableVertexAttribArray(position);
         this.gl.vertexAttribPointer(position, 3, this.gl.FLOAT, false, 4 * 3, 0);
+        const elapsedTimeLoc = this.gl.getUniformLocation(this.glProgram, 'elapsedTime');
+        this.gl.uniform1f(elapsedTimeLoc, elapsedTime);
+        //
         this.gl.drawArrays(this.gl.TRIANGLES, 0, 3);
     }
 
@@ -67,14 +70,21 @@ export class App {
         const program = this.gl.createProgram();
         const vertSource = `
             attribute vec4 position;
+            varying vec4 fragColor;
+            uniform float elapsedTime;
             void main() {
-                gl_Position = position;
+                fragColor = position * 0.5 + 0.5;
+                float rotateAngle = elapsedTime * 0.001;
+                float x = position.x * cos(rotateAngle) - position.y * sin(rotateAngle);
+                float y = position.x * sin(rotateAngle) + position.y * cos(rotateAngle);
+                gl_Position = vec4(x, y, 0.0, 1.0);
             }
         `;
         const vertShader = this.makeShader(vertSource, this.gl.VERTEX_SHADER);
         const fragSource = `
+            varying mediump vec4 fragColor;
             void main() {
-                gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+                gl_FragColor = fragColor;
             }
         `;
         const fragShader = this.makeShader(fragSource, this.gl.FRAGMENT_SHADER);
