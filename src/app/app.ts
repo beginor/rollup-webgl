@@ -3,6 +3,9 @@ export class App {
     private gl: WebGLRenderingContext;
     private glInfoNode: HTMLElement;
 
+    private glProgram: WebGLProgram;
+    private glBuffer: WebGLBuffer;
+
     private lastRenderTime = 0;
     private collectedFrameDuration = 0;
     private collectedFrameCount = 0;
@@ -16,6 +19,9 @@ export class App {
         this.gl = canvas.getContext('webgl')
             || canvas.getContext('experimental-webgl');
         this.glInfoNode = document.getElementById('glInfo');
+        //
+        this.glProgram = this.makeProgram();
+        this.glBuffer = this.makeBuffer();
         this.render(0);
     }
 
@@ -43,8 +49,75 @@ export class App {
     }
 
     private draw(deltaTime: number, elapsedTime: number): void {
+        // this.gl.viewport(0, 0, this.glCanvasNode.width, this.glCanvasNode.height);
         this.gl.clearColor(1.0, 0.0, 0.0, 1.0);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+        //
+        this.gl.useProgram(this.glProgram);
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.glBuffer);
+        const position = this.gl.getAttribLocation(
+            this.glProgram, 'position'
+        );
+        this.gl.enableVertexAttribArray(position);
+        this.gl.vertexAttribPointer(position, 3, this.gl.FLOAT, false, 4 * 3, 0);
+        this.gl.drawArrays(this.gl.TRIANGLES, 0, 3);
+    }
+
+    private makeProgram(): WebGLProgram {
+        const program = this.gl.createProgram();
+        const vertSource = `
+            attribute vec4 position;
+            void main() {
+                gl_Position = position;
+            }
+        `;
+        const vertShader = this.makeShader(vertSource, this.gl.VERTEX_SHADER);
+        const fragSource = `
+            void main() {
+                gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            }
+        `;
+        const fragShader = this.makeShader(fragSource, this.gl.FRAGMENT_SHADER);
+        this.gl.attachShader(program, vertShader);
+        this.gl.attachShader(program, fragShader);
+        this.gl.linkProgram(program);
+        if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
+            console.error(
+                'Error init shader program ' + this.gl.getProgramInfoLog(program)
+            );
+            return null;
+        }
+        return program;
+    }
+
+    private makeShader(source: string, type: number): WebGLShader {
+        const shader = this.gl.createShader(type);
+        this.gl.shaderSource(shader, source);
+        this.gl.compileShader(shader);
+        if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+            this.gl.deleteShader(shader);
+            console.log(
+                'Error compile shader ' + this.gl.getShaderInfoLog(shader)
+            );
+            return null;
+        }
+        return shader;
+    }
+
+    private makeBuffer(): WebGLBuffer {
+        const triangle = [
+            0.0, 1.0, 0.0,
+            -1.0, -1.0, 0.0,
+            1.0, -1.0, 0.0,
+        ];
+        const buffer = this.gl.createBuffer();
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+        this.gl.bufferData(
+            this.gl.ARRAY_BUFFER,
+            new Float32Array(triangle),
+            this.gl.STATIC_DRAW
+        );
+        return buffer;
     }
 
 }
