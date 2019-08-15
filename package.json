@@ -27,6 +27,9 @@
     "url": "https://github.com/beginor/rollup-starter/issues"
   },
   "homepage": "https://github.com/beginor/rollup-starter#readme",
+  "dependencies": {
+    "gl-matrix": "^3.0.0"
+  },
   "devDependencies": {
     "concurrently": "^4.1.1",
     "browser-sync": "^2.26.7",
@@ -37,6 +40,7 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript2": "^0.22.1",
     "rollup-plugin-uglify": "^6.0.2",
-    "typescript": "^3.5.3"
+    "typescript": "^3.5.3",
+    "@types/gl-matrix": "^2.4.5"
   }
 }
