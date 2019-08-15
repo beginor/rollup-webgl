@@ -21,7 +21,7 @@ html, body {
   padding: 4px;
 }
 
-#drawMode {
+#projection {
   position: absolute;
   top: 0;
   right: 0;

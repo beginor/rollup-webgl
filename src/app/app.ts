@@ -3,12 +3,14 @@ import { mat4, vec3 } from 'gl-matrix';
 export class App {
 
     private gl: WebGLRenderingContext;
+    private glNode: HTMLCanvasElement;
     private glInfoNode: HTMLElement;
 
     private glProgram: WebGLProgram;
     private buffer: WebGLBuffer;
     private vertexCount: number;
     private drawMode: number;
+    private projection: mat4;
 
     private lastRenderTime = 0;
     private collectedFrameDuration = 0;
@@ -18,23 +20,55 @@ export class App {
 
     public run(): void {
         const canvas = document.getElementById('glCanvas') as HTMLCanvasElement;
+        this.glNode = canvas;
         this.gl = canvas.getContext('webgl')
             || canvas.getContext('experimental-webgl');
         this.glInfoNode = document.getElementById('glInfo');
+        const projNode = document.getElementById('projection') as HTMLSelectElement;
+        projNode.addEventListener('change', e => {
+            if (projNode.value === 'perspective') {
+                this.createPerspectiveMatrix();
+            }
+            if (projNode.value === 'ortho') {
+                this.createOrthogonalMatrix();
+            }
+        });
         //
         this.glProgram = this.makeProgram();
         this.createTriangleBuffer();
+        this.createPerspectiveMatrix();
         this.render(0);
     }
 
-    private createTriangleBuffer() {
+    private createPerspectiveMatrix(): void {
+        const mat = mat4.create();
+        mat4.perspective(
+            mat,
+            80.0 / 180 * Math.PI,
+            this.glNode.width / this.glNode.height,
+            0.1,
+            1000
+        );
+        this.projection = mat;
+    }
+
+    private createOrthogonalMatrix(): void {
+        const mat = mat4.create();
+        mat4.ortho(mat, -0.8, 0.8, -0.8, 0.8, -100, 100);
+        this.projection = mat;
+    }
+
+    private createTriangleBuffer(): void {
         const triangle = [
-            0.0, 0.5, 0.0,
+            -0.5, 0.5, 0.0,
             -0.5, -0.5, 0.0,
             0.5, -0.5, 0.0,
+            -0.5, 0.5, 0.0,
+            0.5, -0.5, 0.0,
+            0.5, 0.5, 0.0
         ];
         this.buffer = this.createBuffer(triangle);
-        this.vertexCount = 3;
+        this.vertexCount = 6;
         this.drawMode = this.gl.TRIANGLES;
     }
 
@@ -77,19 +111,14 @@ export class App {
         this.gl.uniform1f(elapsedTimeLoc, elapsedTime);
         // rotate with time
         const rotateMatrix = mat4.create();
-        mat4.rotate(rotateMatrix, rotateMatrix, elapsedTime / 1000.0, vec3.fromValues(1, 1, 1));
-        // scale with time;
-        const scale = 0.1 * (Math.sin(elapsedTime / 1000.0) + 1.0) + 0.4;
-        const scaleMatrix = mat4.create();
-        mat4.scale(scaleMatrix, scaleMatrix, vec3.fromValues(scale, scale, scale));
-        // offset x with time;
-        const xoffset = Math.sin(elapsedTime / 1000.0);
-        const translateMatrix = mat4.create();
-        mat4.translate(translateMatrix, translateMatrix, vec3.fromValues(xoffset, 0, 0));
+        mat4.rotate(rotateMatrix, rotateMatrix, elapsedTime / 1000.0, vec3.fromValues(0, 1, 0));
+        // translate matrix
+        var translateMatrix = mat4.create();
+        mat4.translate(translateMatrix, translateMatrix, vec3.fromValues(0, 0, -1));
         // final transform
         const transform = mat4.create();
-        mat4.multiply(transform, rotateMatrix, scaleMatrix);
-        mat4.multiply(transform, transform, translateMatrix);
+        mat4.multiply(transform, translateMatrix, rotateMatrix);
+        mat4.multiply(transform, this.projection, transform);
         // set transform to shader.
         const transformUniformLoc = this.gl.getUniformLocation(this.glProgram, 'transform');
         this.gl.uniformMatrix4fv(transformUniformLoc, false, transform);
