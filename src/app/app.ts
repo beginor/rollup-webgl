@@ -10,7 +10,10 @@ export class App {
     private buffer: WebGLBuffer;
     private vertexCount: number;
     private drawMode: number;
-    private projection: mat4;
+    private perspectiveProjectionMatrix: mat4;
+    private cameraMatrix: mat4;
+    private model1Matrix: mat4;
+    private model2Matrix: mat4;
 
     private lastRenderTime = 0;
     private collectedFrameDuration = 0;
@@ -24,38 +27,33 @@ export class App {
         this.gl = canvas.getContext('webgl')
             || canvas.getContext('experimental-webgl');
         this.glInfoNode = document.getElementById('glInfo');
-        const projNode = document.getElementById('projection') as HTMLSelectElement;
-        projNode.addEventListener('change', e => {
-            if (projNode.value === 'perspective') {
-                this.createPerspectiveMatrix();
-            }
-            if (projNode.value === 'ortho') {
-                this.createOrthogonalMatrix();
-            }
-        });
         //
         this.glProgram = this.makeProgram();
         this.createTriangleBuffer();
-        this.createPerspectiveMatrix();
+        this.createMatrix();
         this.render(0);
     }
 
-    private createPerspectiveMatrix(): void {
-        const mat = mat4.create();
+    private createMatrix(): void {
+        const projection = mat4.create();
         mat4.perspective(
-            mat,
+            projection,
             80.0 / 180 * Math.PI,
             this.glNode.width / this.glNode.height,
             0.1,
             1000
         );
-        this.projection = mat;
-    }
-
-    private createOrthogonalMatrix(): void {
-        const mat = mat4.create();
-        mat4.ortho(mat, -0.8, 0.8, -0.8, 0.8, -100, 100);
-        this.projection = mat;
+        this.perspectiveProjectionMatrix = projection;
+        const camera = mat4.create();
+        mat4.lookAt(
+            camera,
+            vec3.fromValues(0, 0, 2),
+            vec3.fromValues(0, 0, 0),
+            vec3.fromValues(0, 1, 0)
+        );
+        this.cameraMatrix = camera;
+        this.model1Matrix = mat4.create();
+        this.model2Matrix = mat4.create();
     }
 
     private createTriangleBuffer(): void {
@@ -109,20 +107,65 @@ export class App {
         this.gl.vertexAttribPointer(position, 3, this.gl.FLOAT, false, 4 * 3, 0);
         const elapsedTimeLoc = this.gl.getUniformLocation(this.glProgram, 'elapsedTime');
         this.gl.uniform1f(elapsedTimeLoc, elapsedTime);
-        // rotate with time
-        const rotateMatrix = mat4.create();
-        mat4.rotate(rotateMatrix, rotateMatrix, elapsedTime / 1000.0, vec3.fromValues(0, 1, 0));
-        // translate matrix
-        var translateMatrix = mat4.create();
-        mat4.translate(translateMatrix, translateMatrix, vec3.fromValues(0, 0, -1));
-        // final transform
-        const transform = mat4.create();
-        mat4.multiply(transform, translateMatrix, rotateMatrix);
-        mat4.multiply(transform, this.projection, transform);
-        // set transform to shader.
-        const transformUniformLoc = this.gl.getUniformLocation(this.glProgram, 'transform');
-        this.gl.uniformMatrix4fv(transformUniformLoc, false, transform);
-        //
+        // // rotate with time
+        // const rotateMatrix = mat4.create();
+        // mat4.rotate(rotateMatrix, rotateMatrix, elapsedTime / 1000.0, vec3.fromValues(0, 1, 0));
+        // // translate matrix
+        // var translateMatrix = mat4.create();
+        // mat4.translate(translateMatrix, translateMatrix, vec3.fromValues(0, 0, -1));
+        // // final transform
+        // const transform = mat4.create();
+        // mat4.multiply(transform, translateMatrix, rotateMatrix);
+        // mat4.multiply(transform, this.perspectiveProjectionMatrix, transform);
+        const varyingFactor = (Math.sin(elapsedTime / 1000.0) + 1) / 2.0;
+        mat4.lookAt(
+            this.cameraMatrix,
+            vec3.fromValues(0, 0, 2 * (varyingFactor + 1)),
+            vec3.fromValues(0, 0, 0),
+            vec3.fromValues(0, 1, 0)
+        );
+        // setup model1
+        let rotateMatrix = mat4.create();
+        mat4.rotate(
+            rotateMatrix,
+            rotateMatrix,
+            varyingFactor * Math.PI * 2,
+            vec3.fromValues(0, 1, 0)
+        );
+        let translateMatrix = mat4.create();
+        mat4.translate(
+            translateMatrix,
+            translateMatrix,
+            vec3.fromValues(-0.7, 0, 0)
+        );
+        mat4.multiply(this.model1Matrix, translateMatrix, rotateMatrix);
+        // setup model2
+        rotateMatrix = mat4.create();
+        mat4.rotate(
+            rotateMatrix,
+            rotateMatrix,
+            varyingFactor * Math.PI * 2,
+            vec3.fromValues(0, 0, 1)
+        );
+        translateMatrix = mat4.create();
+        mat4.translate(
+            translateMatrix,
+            translateMatrix,
+            vec3.fromValues(0.7, 0, 0)
+        );
+        mat4.multiply(this.model2Matrix, translateMatrix, rotateMatrix);
+        // set matrix to shader.
+        const projectionUniformLoc = this.gl.getUniformLocation(this.glProgram, 'projectionMatrix');
+        this.gl.uniformMatrix4fv(projectionUniformLoc, false, this.perspectiveProjectionMatrix);
+        const cameraUniformLoc = this.gl.getUniformLocation(this.glProgram, 'cameraMatrix');
+        this.gl.uniformMatrix4fv(cameraUniformLoc, false, this.cameraMatrix);
+        // draw model1
+        let modelUniformLoc = this.gl.getUniformLocation(this.glProgram, 'modelMatrix');
+        this.gl.uniformMatrix4fv(modelUniformLoc, false, this.model1Matrix);
+        this.gl.drawArrays(this.drawMode, 0, this.vertexCount);
+        // draw model2
+        modelUniformLoc = this.gl.getUniformLocation(this.glProgram, 'modelMatrix');
+        this.gl.uniformMatrix4fv(modelUniformLoc, false, this.model2Matrix);
         this.gl.drawArrays(this.drawMode, 0, this.vertexCount);
     }
 
@@ -132,10 +175,12 @@ export class App {
             attribute vec4 position;
             varying vec4 fragColor;
             uniform float elapsedTime;
-            uniform mat4 transform;
+            uniform mat4 projectionMatrix;
+            uniform mat4 cameraMatrix;
+            uniform mat4 modelMatrix;
             void main() {
                 fragColor = position * 0.5 + 0.5;
-                gl_Position = transform * position;
+                gl_Position = projectionMatrix * cameraMatrix * modelMatrix * position;
                 gl_PointSize = 4.0;
             }
         `;
