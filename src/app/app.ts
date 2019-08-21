@@ -13,6 +13,7 @@ export class App {
     private projectionMatrix: mat4;
     private cameraMatrix: mat4;
     private modelMatrix: mat4;
+    private lightDirection: vec3;
 
     private lastRenderTime = 0;
     private collectedFrameDuration = 0;
@@ -42,72 +43,68 @@ export class App {
             return;
         }
         this.gl.viewport(0, 0, this.canvasEl.width, this.canvasEl.height);
+        if (!this.projectionMatrix) {
+            return;
+        }
+        mat4.perspective(this.projectionMatrix, 90 / 180.0 * Math.PI, this.canvasEl.width / this.canvasEl.height, 0.1, 1000);
     }
 
     private createMatrix(): void {
-        const projection = mat4.create();
-        mat4.perspective(
-            projection,
-            80.0 / 180 * Math.PI,
-            this.canvasEl.width / this.canvasEl.height,
-            0.1,
-            1000
-        );
-        this.projectionMatrix = projection;
-        const camera = mat4.create();
-        mat4.lookAt(
-            camera,
-            vec3.fromValues(0, 0, 2),
-            vec3.fromValues(0, 0, 0),
-            vec3.fromValues(0, 1, 0)
-        );
-        this.cameraMatrix = camera;
+        this.projectionMatrix = mat4.create();
+        mat4.perspective(this.projectionMatrix, 90 / 180.0 * Math.PI, this.canvasEl.width / this.canvasEl.height, 0.1, 1000);
+
+        this.cameraMatrix = mat4.create();
+        mat4.lookAt(this.cameraMatrix, vec3.fromValues(0,0,1), vec3.fromValues(0,0,0), vec3.fromValues(0,1,0));
+
         this.modelMatrix = mat4.create();
+
+        this.lightDirection = vec3.fromValues(0, -1, 0);
     }
 
     private createTriangleBuffer(): void {
         const triangle = [
             // Z轴上的平面
-            -0.5,   0.5,    0.5,
-            -0.5,   -0.5,   0.5,
-            0.5,    -0.5,   0.5,
-            0.5,    -0.5,   0.5,
-            0.5,    0.5,    0.5,
-            -0.5,   0.5,    0.5,
-            -0.5,   0.5,    -0.5,
-            -0.5,   -0.5,   -0.5,
-            0.5,    -0.5,   -0.5,
-            0.5,    -0.5,   -0.5,
-            0.5,    0.5,    -0.5,
-            -0.5,   0.5,    -0.5,
+            -0.5,   0.5,    0.5,  0, 0, 1,
+            -0.5,   -0.5,   0.5,  0, 0, 1,
+            0.5,    -0.5,   0.5,  0, 0, 1,
+            0.5,    -0.5,   0.5,  0, 0, 1,
+            0.5,    0.5,    0.5,  0, 0, 1,
+            -0.5,   0.5,    0.5,  0, 0, 1,
+            -0.5,   0.5,    -0.5, 0, 0, -1,
+            -0.5,   -0.5,   -0.5, 0, 0, -1,
+            0.5,    -0.5,   -0.5, 0, 0, -1,
+            0.5,    -0.5,   -0.5, 0, 0, -1,
+            0.5,    0.5,    -0.5, 0, 0, -1,
+            -0.5,   0.5,    -0.5, 0, 0, -1,
             // X轴上的平面
-            0.5,    -0.5,   0.5,
-            0.5,    -0.5,   -0.5,
-            0.5,    0.5,    -0.5,
-            0.5,    0.5,    -0.5,
-            0.5,    0.5,    0.5,
-            0.5,    -0.5,   0.5,
-            -0.5,   -0.5,   0.5,
-            -0.5,   -0.5,   -0.5,
-            -0.5,   0.5,    -0.5,
-            -0.5,   0.5,    -0.5,
-            -0.5,   0.5,    0.5,
-            -0.5,   -0.5,   0.5,
+            0.5,    -0.5,   0.5,  1, 0, 0,
+            0.5,    -0.5,   -0.5, 1, 0, 0,
+            0.5,    0.5,    -0.5, 1, 0, 0,
+            0.5,    0.5,    -0.5, 1, 0, 0,
+            0.5,    0.5,    0.5,  1, 0, 0,
+            0.5,    -0.5,   0.5,  1, 0, 0,
+            -0.5,   -0.5,   0.5,  -1, 0, 0,
+            -0.5,   -0.5,   -0.5, -1, 0, 0,
+            -0.5,   0.5,    -0.5, -1, 0, 0,
+            -0.5,   0.5,    -0.5, -1, 0, 0,
+            -0.5,   0.5,    0.5,  -1, 0, 0,
+            -0.5,   -0.5,   0.5,  -1, 0, 0,
             // Y轴上的平面
-            -0.5,   0.5,    0.5,
-            -0.5,   0.5,    -0.5,
-            0.5,    0.5,    -0.5,
-            0.5,    0.5,    -0.5,
-            0.5,    0.5,    0.5,
-            -0.5,   0.5,    0.5,
-            -0.5,   -0.5,   0.5,
-            -0.5,   -0.5,   -0.5,
-            0.5,    -0.5,   -0.5,
-            0.5,    -0.5,   -0.5,
-            0.5,    -0.5,   0.5,
-            -0.5,   -0.5,   0.5
+            -0.5,   0.5,    0.5,  0, 1, 0,
+            -0.5,   0.5,    -0.5, 0, 1, 0,
+            0.5,    0.5,    -0.5, 0, 1, 0,
+            0.5,    0.5,    -0.5, 0, 1, 0,
+            0.5,    0.5,    0.5,  0, 1, 0,
+            -0.5,   0.5,    0.5,  0, 1, 0,
+            -0.5,   -0.5,   0.5,  0, -1, 0,
+            -0.5,   -0.5,   -0.5, 0, -1, 0,
+            0.5,    -0.5,   -0.5, 0, -1, 0,
+            0.5,    -0.5,   -0.5, 0, -1, 0,
+            0.5,    -0.5,   0.5,  0, -1, 0,
+            -0.5,   -0.5,   0.5,  0, -1, 0,
         ];
         this.buffer = this.createBuffer(triangle);
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
         this.vertexCount = 6 * 6;
         this.drawMode = this.gl.TRIANGLES;
     }
@@ -136,20 +133,30 @@ export class App {
     }
 
     private draw(deltaTime: number, elapsedTime: number): void {
-        // this.gl.viewport(0, 0, this.glCanvasNode.width, this.glCanvasNode.height);
-        this.gl.clearColor(1.0, 0.0, 0.0, 1.0);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+        this.gl.viewport(0, 0, this.canvasEl.width, this.canvasEl.height);
+        mat4.perspective(this.projectionMatrix, 90 / 180.0 * Math.PI, this.canvasEl.width / this.canvasEl.height, 0.1, 1000);
+        this.gl.clearColor(0.2, 0.2, 0.2, 1.0);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
         this.gl.enable(this.gl.DEPTH_TEST);
         //
         this.gl.useProgram(this.program);
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
-        const position = this.gl.getAttribLocation(
-            this.program, 'position'
-        );
-        this.gl.enableVertexAttribArray(position);
-        this.gl.vertexAttribPointer(position, 3, this.gl.FLOAT, false, 4 * 3, 0);
-        const elapsedTimeLoc = this.gl.getUniformLocation(this.program, 'elapsedTime');
-        this.gl.uniform1f(elapsedTimeLoc, elapsedTime);
+        //
+        const positionLoc = this.gl.getAttribLocation(this.program, 'position');
+        this.gl.enableVertexAttribArray(positionLoc);
+        this.gl.vertexAttribPointer(positionLoc, 3, this.gl.FLOAT, false, 4 * 6, 0);
+        //
+        const normalLoc = this.gl.getAttribLocation(this.program, 'normal');
+        this.gl.enableVertexAttribArray(normalLoc);
+        this.gl.vertexAttribPointer(normalLoc, 3, this.gl.FLOAT, false, 4 * 6, 4 * 3);
+        //
+        const elapsedTimeUniformLoc = this.gl.getUniformLocation(this.program, 'elapsedTime');
+        this.gl.uniform1f(elapsedTimeUniformLoc, elapsedTime);
+        //
+        const lightDirection = vec3.fromValues(0, -1, 0);
+        const lightDirectionLoc = this.gl.getUniformLocation(this.program, 'lightDirection');
+        this.gl.uniform3fv(lightDirectionLoc, lightDirection);
+        //
         const varyingFactor = (Math.sin(elapsedTime / 1000.0) + 1) / 2.0;
         mat4.lookAt(
             this.cameraMatrix,
@@ -157,7 +164,7 @@ export class App {
             vec3.fromValues(0, 0, 0),
             vec3.fromValues(0, 1, 0)
         );
-        // setup model1
+        // setup model
         let rotateMatrix = mat4.create();
         mat4.rotate(
             rotateMatrix,
@@ -175,35 +182,64 @@ export class App {
         // set matrix to shader.
         const projectionUniformLoc = this.gl.getUniformLocation(this.program, 'projectionMatrix');
         this.gl.uniformMatrix4fv(projectionUniformLoc, false, this.projectionMatrix);
+        //
         const cameraUniformLoc = this.gl.getUniformLocation(this.program, 'cameraMatrix');
         this.gl.uniformMatrix4fv(cameraUniformLoc, false, this.cameraMatrix);
-        // draw model
+        //  model
         let modelUniformLoc = this.gl.getUniformLocation(this.program, 'modelMatrix');
         this.gl.uniformMatrix4fv(modelUniformLoc, false, this.modelMatrix);
+        // normal
+        const normalMatrix = mat4.create();
+        mat4.invert(normalMatrix, this.modelMatrix);
+        mat4.transpose(normalMatrix, normalMatrix);
+        const normalMatrixLoc = this.gl.getUniformLocation(this.program, 'normalMatrix');
+        this.gl.uniformMatrix4fv(normalMatrixLoc, false, normalMatrix);
+        //
         this.gl.drawArrays(this.drawMode, 0, this.vertexCount);
     }
 
     private makeProgram(): WebGLProgram {
         const program = this.gl.createProgram();
         const vertSource = `
-            attribute vec4 position;
-            varying vec4 fragColor;
-            uniform float elapsedTime;
-            uniform mat4 projectionMatrix;
-            uniform mat4 cameraMatrix;
-            uniform mat4 modelMatrix;
-            void main() {
-                fragColor = position * 0.5 + 0.5;
-                gl_Position = projectionMatrix * cameraMatrix * modelMatrix * position;
-                gl_PointSize = 4.0;
-            }
+        attribute vec4 position;
+        attribute vec3 normal;
+
+        varying vec3 fragNormal;
+
+        uniform float elapsedTime;
+        uniform mat4 projectionMatrix;
+        uniform mat4 cameraMatrix;
+        uniform mat4 modelMatrix;
+        void main() {
+            fragNormal = normal;
+            gl_Position = projectionMatrix * cameraMatrix * modelMatrix * position;
+        }
         `;
         const vertShader = this.createShader(vertSource, this.gl.VERTEX_SHADER);
         const fragSource = `
-            varying mediump vec4 fragColor;
-            void main() {
-                gl_FragColor = fragColor;
-            }
+        precision highp float;
+
+        varying vec3 fragNormal;
+
+        uniform float elapsedTime;
+        uniform vec3 lightDirection;
+        uniform mat4 normalMatrix;
+
+        void main(void) {
+            vec3 normalizedLightDirection = normalize(-lightDirection);
+            vec3 transformedNormal = normalize((normalMatrix * vec4(fragNormal, 1.0)).xyz);
+
+            float diffuseStrength = dot(normalizedLightDirection, transformedNormal);
+            diffuseStrength = clamp(diffuseStrength, 0.0, 1.0);
+            vec3 diffuse = vec3(diffuseStrength);
+
+            vec3 ambient = vec3(0.3);
+
+            vec4 finalLightStrength = vec4(ambient + diffuse, 1.0);
+            vec4 materialColor = vec4(1.0, 0.0, 0.0, 1.0);
+
+            gl_FragColor = finalLightStrength * materialColor;
+        }
         `;
         const fragShader = this.createShader(fragSource, this.gl.FRAGMENT_SHADER);
         this.gl.attachShader(program, vertShader);
