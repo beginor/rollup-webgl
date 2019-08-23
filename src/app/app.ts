@@ -14,6 +14,8 @@ export class App {
     private cameraMatrix: mat4;
     private modelMatrix: mat4;
     private lightDirection: vec3;
+    private texture: WebGLTexture;
+    private textureReady = false;
 
     private lastRenderTime = 0;
     private collectedFrameDuration = 0;
@@ -31,6 +33,7 @@ export class App {
         this.resizeCanvas(null);
         this.infoEl = document.getElementById('glInfo');
         //
+        this.createTexture();
         this.program = this.makeProgram();
         this.createTriangleBuffer();
         this.createMatrix();
@@ -64,44 +67,44 @@ export class App {
     private createTriangleBuffer(): void {
         const triangle = [
             // Z轴上的平面
-            -0.5,   0.5,    0.5,  0, 0, 1,
-            -0.5,   -0.5,   0.5,  0, 0, 1,
-            0.5,    -0.5,   0.5,  0, 0, 1,
-            0.5,    -0.5,   0.5,  0, 0, 1,
-            0.5,    0.5,    0.5,  0, 0, 1,
-            -0.5,   0.5,    0.5,  0, 0, 1,
-            -0.5,   0.5,    -0.5, 0, 0, -1,
-            -0.5,   -0.5,   -0.5, 0, 0, -1,
-            0.5,    -0.5,   -0.5, 0, 0, -1,
-            0.5,    -0.5,   -0.5, 0, 0, -1,
-            0.5,    0.5,    -0.5, 0, 0, -1,
-            -0.5,   0.5,    -0.5, 0, 0, -1,
+            -0.5,   0.5,    0.5,  0, 0, 1,  0, 0,
+            -0.5,   -0.5,   0.5,  0, 0, 1,  0, 1,
+            0.5,    -0.5,   0.5,  0, 0, 1,  1, 1,
+            0.5,    -0.5,   0.5,  0, 0, 1,  1, 1,
+            0.5,    0.5,    0.5,  0, 0, 1,  1, 0,
+            -0.5,   0.5,    0.5,  0, 0, 1,  0, 0,
+            -0.5,   0.5,    -0.5, 0, 0, -1, 0, 0,
+            -0.5,   -0.5,   -0.5, 0, 0, -1, 0, 1,
+            0.5,    -0.5,   -0.5, 0, 0, -1, 1, 1,
+            0.5,    -0.5,   -0.5, 0, 0, -1, 1, 1,
+            0.5,    0.5,    -0.5, 0, 0, -1, 1, 0,
+            -0.5,   0.5,    -0.5, 0, 0, -1, 0, 0,
             // X轴上的平面
-            0.5,    -0.5,   0.5,  1, 0, 0,
-            0.5,    -0.5,   -0.5, 1, 0, 0,
-            0.5,    0.5,    -0.5, 1, 0, 0,
-            0.5,    0.5,    -0.5, 1, 0, 0,
-            0.5,    0.5,    0.5,  1, 0, 0,
-            0.5,    -0.5,   0.5,  1, 0, 0,
-            -0.5,   -0.5,   0.5,  -1, 0, 0,
-            -0.5,   -0.5,   -0.5, -1, 0, 0,
-            -0.5,   0.5,    -0.5, -1, 0, 0,
-            -0.5,   0.5,    -0.5, -1, 0, 0,
-            -0.5,   0.5,    0.5,  -1, 0, 0,
-            -0.5,   -0.5,   0.5,  -1, 0, 0,
+            0.5,    -0.5,   0.5,  1, 0, 0,  0, 0,
+            0.5,    -0.5,   -0.5, 1, 0, 0,  0, 1,
+            0.5,    0.5,    -0.5, 1, 0, 0,  1, 1,
+            0.5,    0.5,    -0.5, 1, 0, 0,  1, 1,
+            0.5,    0.5,    0.5,  1, 0, 0,  1, 0,
+            0.5,    -0.5,   0.5,  1, 0, 0,  0, 0,
+            -0.5,   -0.5,   0.5,  -1, 0, 0, 0, 0,
+            -0.5,   -0.5,   -0.5, -1, 0, 0, 0, 1,
+            -0.5,   0.5,    -0.5, -1, 0, 0, 1, 1,
+            -0.5,   0.5,    -0.5, -1, 0, 0, 1, 1,
+            -0.5,   0.5,    0.5,  -1, 0, 0, 1, 0,
+            -0.5,   -0.5,   0.5,  -1, 0, 0, 0, 0,
             // Y轴上的平面
-            -0.5,   0.5,    0.5,  0, 1, 0,
-            -0.5,   0.5,    -0.5, 0, 1, 0,
-            0.5,    0.5,    -0.5, 0, 1, 0,
-            0.5,    0.5,    -0.5, 0, 1, 0,
-            0.5,    0.5,    0.5,  0, 1, 0,
-            -0.5,   0.5,    0.5,  0, 1, 0,
-            -0.5,   -0.5,   0.5,  0, -1, 0,
-            -0.5,   -0.5,   -0.5, 0, -1, 0,
-            0.5,    -0.5,   -0.5, 0, -1, 0,
-            0.5,    -0.5,   -0.5, 0, -1, 0,
-            0.5,    -0.5,   0.5,  0, -1, 0,
-            -0.5,   -0.5,   0.5,  0, -1, 0,
+            -0.5,   0.5,    0.5,  0, 1, 0,  0, 0,
+            -0.5,   0.5,    -0.5, 0, 1, 0,  0, 1,
+            0.5,    0.5,    -0.5, 0, 1, 0,  1, 1,
+            0.5,    0.5,    -0.5, 0, 1, 0,  1, 1,
+            0.5,    0.5,    0.5,  0, 1, 0,  1, 0,
+            -0.5,   0.5,    0.5,  0, 1, 0,  0, 0,
+            -0.5,   -0.5,   0.5,  0, -1, 0, 0, 0,
+            -0.5,   -0.5,   -0.5, 0, -1, 0, 0, 1,
+            0.5,    -0.5,   -0.5, 0, -1, 0, 1, 1,
+            0.5,    -0.5,   -0.5, 0, -1, 0, 1, 1,
+            0.5,    -0.5,   0.5,  0, -1, 0, 1, 0,
+            -0.5,   -0.5,   0.5,  0, -1, 0, 0, 0,
         ];
         this.buffer = this.createBuffer(triangle);
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
@@ -144,11 +147,15 @@ export class App {
         //
         const positionLoc = this.gl.getAttribLocation(this.program, 'position');
         this.gl.enableVertexAttribArray(positionLoc);
-        this.gl.vertexAttribPointer(positionLoc, 3, this.gl.FLOAT, false, 4 * 6, 0);
+        this.gl.vertexAttribPointer(positionLoc, 3, this.gl.FLOAT, false, 4 * 8, 0);
         //
         const normalLoc = this.gl.getAttribLocation(this.program, 'normal');
         this.gl.enableVertexAttribArray(normalLoc);
-        this.gl.vertexAttribPointer(normalLoc, 3, this.gl.FLOAT, false, 4 * 6, 4 * 3);
+        this.gl.vertexAttribPointer(normalLoc, 3, this.gl.FLOAT, false, 4 * 8, 4 * 3);
+        // uv
+        const uvLoc = this.gl.getAttribLocation(this.program, 'uv');
+        this.gl.enableVertexAttribArray(uvLoc);
+        this.gl.vertexAttribPointer(uvLoc, 2, this.gl.FLOAT, false, 4 * 8, 4 * 6);
         //
         const elapsedTimeUniformLoc = this.gl.getUniformLocation(this.program, 'elapsedTime');
         this.gl.uniform1f(elapsedTimeUniformLoc, elapsedTime);
@@ -194,6 +201,13 @@ export class App {
         mat4.transpose(normalMatrix, normalMatrix);
         const normalMatrixLoc = this.gl.getUniformLocation(this.program, 'normalMatrix');
         this.gl.uniformMatrix4fv(normalMatrixLoc, false, normalMatrix);
+        // texture
+        if (this.textureReady) {
+            const diffuseMapLoc = this.gl.getUniformLocation(this.program, 'diffuseMap');
+            this.gl.activeTexture(this.gl.TEXTURE0);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+            this.gl.uniform1i(diffuseMapLoc, 0);
+        }
         //
         this.gl.drawArrays(this.drawMode, 0, this.vertexCount);
     }
@@ -203,8 +217,10 @@ export class App {
         const vertSource = `
         attribute vec4 position;
         attribute vec3 normal;
+        attribute vec2 uv;
 
         varying vec3 fragNormal;
+        varying vec2 fragUV;
 
         uniform float elapsedTime;
         uniform mat4 projectionMatrix;
@@ -212,6 +228,7 @@ export class App {
         uniform mat4 modelMatrix;
         void main() {
             fragNormal = normal;
+            fragUV = uv;
             gl_Position = projectionMatrix * cameraMatrix * modelMatrix * position;
         }
         `;
@@ -220,10 +237,13 @@ export class App {
         precision highp float;
 
         varying vec3 fragNormal;
+        varying vec2 fragUV;
 
         uniform float elapsedTime;
         uniform vec3 lightDirection;
         uniform mat4 normalMatrix;
+
+        uniform sampler2D diffuseMap;
 
         void main(void) {
             vec3 normalizedLightDirection = normalize(-lightDirection);
@@ -236,7 +256,7 @@ export class App {
             vec3 ambient = vec3(0.3);
 
             vec4 finalLightStrength = vec4(ambient + diffuse, 1.0);
-            vec4 materialColor = vec4(1.0, 0.0, 0.0, 1.0);
+            vec4 materialColor = texture2D(diffuseMap, fragUV);
 
             gl_FragColor = finalLightStrength * materialColor;
         }
@@ -277,6 +297,21 @@ export class App {
             this.gl.STATIC_DRAW
         );
         return buffer;
+    }
+
+    private createTexture(): void {
+        this.texture = this.gl.createTexture();
+        const image = new Image();
+        // image.crossOrigin = '';
+        image.onload = (e) => {
+            this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
+            this.gl.texParameterf(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+            this.gl.texParameterf(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+            this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+            this.textureReady = true;
+        };
+        image.src = './assets/wood.png';
     }
 
 }
