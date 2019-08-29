@@ -1,5 +1,8 @@
 import { mat4, vec3 } from 'gl-matrix';
 
+declare type AsyncTexture = WebGLTexture & { ready: boolean; };
+declare type VertexBuffer = WebGLBuffer & { vertexCount: number; };
+
 export class App {
 
     private gl: WebGLRenderingContext;
@@ -7,15 +10,12 @@ export class App {
     private infoEl: HTMLElement;
 
     private program: WebGLProgram;
-    private buffer: WebGLBuffer;
-    private vertexCount: number;
+    private buffer: VertexBuffer;
     private drawMode: number;
     private projectionMatrix: mat4;
     private cameraMatrix: mat4;
     private modelMatrix: mat4;
-    private lightDirection: vec3;
-    private texture: WebGLTexture;
-    private textureReady = false;
+    private texture: AsyncTexture = { ready: false };
 
     private lastRenderTime = 0;
     private collectedFrameDuration = 0;
@@ -45,23 +45,38 @@ export class App {
         if (!this.gl) {
             return;
         }
+        this.canvasEl.width = this.canvasEl.clientWidth;
+        this.canvasEl.height = this.canvasEl.clientHeight;
         this.gl.viewport(0, 0, this.canvasEl.width, this.canvasEl.height);
         if (!this.projectionMatrix) {
             return;
         }
-        mat4.perspective(this.projectionMatrix, 90 / 180.0 * Math.PI, this.canvasEl.width / this.canvasEl.height, 0.1, 1000);
+        mat4.perspective(
+            this.projectionMatrix,
+            90 / 180.0 * Math.PI,
+            this.canvasEl.width / this.canvasEl.height,
+            0.1,
+            1000
+        );
     }
 
     private createMatrix(): void {
         this.projectionMatrix = mat4.create();
-        mat4.perspective(this.projectionMatrix, 90 / 180.0 * Math.PI, this.canvasEl.width / this.canvasEl.height, 0.1, 1000);
-
+        mat4.perspective(
+            this.projectionMatrix,
+            90 / 180.0 * Math.PI,
+            this.canvasEl.width / this.canvasEl.height,
+            0.1,
+            1000
+        );
         this.cameraMatrix = mat4.create();
-        mat4.lookAt(this.cameraMatrix, vec3.fromValues(0,0,1), vec3.fromValues(0,0,0), vec3.fromValues(0,1,0));
-
+        mat4.lookAt(
+            this.cameraMatrix,
+            vec3.fromValues(0,0,1),
+            vec3.fromValues(0,0,0),
+            vec3.fromValues(0,1,0)
+        );
         this.modelMatrix = mat4.create();
-
-        this.lightDirection = vec3.fromValues(0, -1, 0);
     }
 
     private createTriangleBuffer(): void {
@@ -106,9 +121,8 @@ export class App {
             0.5,    -0.5,   0.5,  0, -1, 0, 1, 0,
             -0.5,   -0.5,   0.5,  0, -1, 0, 0, 0,
         ];
-        this.buffer = this.createBuffer(triangle);
+        this.buffer = this.createBuffer(triangle, 6 * 6);
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
-        this.vertexCount = 6 * 6;
         this.drawMode = this.gl.TRIANGLES;
     }
 
@@ -137,7 +151,6 @@ export class App {
 
     private draw(deltaTime: number, elapsedTime: number): void {
         this.gl.viewport(0, 0, this.canvasEl.width, this.canvasEl.height);
-        mat4.perspective(this.projectionMatrix, 90 / 180.0 * Math.PI, this.canvasEl.width / this.canvasEl.height, 0.1, 1000);
         this.gl.clearColor(0.2, 0.2, 0.2, 1.0);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
         this.gl.enable(this.gl.DEPTH_TEST);
@@ -145,23 +158,53 @@ export class App {
         this.gl.useProgram(this.program);
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
         //
-        const positionLoc = this.gl.getAttribLocation(this.program, 'position');
+        const positionLoc = this.gl.getAttribLocation(
+            this.program,
+            'position'
+        );
         this.gl.enableVertexAttribArray(positionLoc);
-        this.gl.vertexAttribPointer(positionLoc, 3, this.gl.FLOAT, false, 4 * 8, 0);
+        this.gl.vertexAttribPointer(
+            positionLoc,
+            3,
+            this.gl.FLOAT,
+            false,
+            4 * 8,
+            0
+        );
         //
         const normalLoc = this.gl.getAttribLocation(this.program, 'normal');
         this.gl.enableVertexAttribArray(normalLoc);
-        this.gl.vertexAttribPointer(normalLoc, 3, this.gl.FLOAT, false, 4 * 8, 4 * 3);
+        this.gl.vertexAttribPointer(
+            normalLoc,
+            3,
+            this.gl.FLOAT,
+            false,
+            4 * 8,
+            4 * 3
+        );
         // uv
         const uvLoc = this.gl.getAttribLocation(this.program, 'uv');
         this.gl.enableVertexAttribArray(uvLoc);
-        this.gl.vertexAttribPointer(uvLoc, 2, this.gl.FLOAT, false, 4 * 8, 4 * 6);
+        this.gl.vertexAttribPointer(
+            uvLoc,
+            2,
+            this.gl.FLOAT,
+            false,
+            4 * 8,
+            4 * 6
+        );
         //
-        const elapsedTimeUniformLoc = this.gl.getUniformLocation(this.program, 'elapsedTime');
+        const elapsedTimeUniformLoc = this.gl.getUniformLocation(
+            this.program,
+            'elapsedTime'
+        );
         this.gl.uniform1f(elapsedTimeUniformLoc, elapsedTime);
         //
         const lightDirection = vec3.fromValues(0, -1, 0);
-        const lightDirectionLoc = this.gl.getUniformLocation(this.program, 'lightDirection');
+        const lightDirectionLoc = this.gl.getUniformLocation(
+            this.program,
+            'lightDirection'
+        );
         this.gl.uniform3fv(lightDirectionLoc, lightDirection);
         //
         const varyingFactor = (Math.sin(elapsedTime / 1000.0) + 1) / 2.0;
@@ -187,79 +230,102 @@ export class App {
         );
         mat4.multiply(this.modelMatrix, translateMatrix, rotateMatrix);
         // set matrix to shader.
-        const projectionUniformLoc = this.gl.getUniformLocation(this.program, 'projectionMatrix');
-        this.gl.uniformMatrix4fv(projectionUniformLoc, false, this.projectionMatrix);
+        const projectionUniformLoc = this.gl.getUniformLocation(
+            this.program,
+            'projectionMatrix'
+        );
+        this.gl.uniformMatrix4fv(
+            projectionUniformLoc,
+            false,
+            this.projectionMatrix
+        );
         //
-        const cameraUniformLoc = this.gl.getUniformLocation(this.program, 'cameraMatrix');
-        this.gl.uniformMatrix4fv(cameraUniformLoc, false, this.cameraMatrix);
+        const cameraUniformLoc = this.gl.getUniformLocation(
+            this.program,
+            'cameraMatrix'
+        );
+        this.gl.uniformMatrix4fv(
+            cameraUniformLoc,
+            false,
+            this.cameraMatrix
+        );
         //  model
-        let modelUniformLoc = this.gl.getUniformLocation(this.program, 'modelMatrix');
+        let modelUniformLoc = this.gl.getUniformLocation(
+            this.program,
+            'modelMatrix'
+        );
         this.gl.uniformMatrix4fv(modelUniformLoc, false, this.modelMatrix);
         // normal
         const normalMatrix = mat4.create();
         mat4.invert(normalMatrix, this.modelMatrix);
         mat4.transpose(normalMatrix, normalMatrix);
-        const normalMatrixLoc = this.gl.getUniformLocation(this.program, 'normalMatrix');
+        const normalMatrixLoc = this.gl.getUniformLocation(
+            this.program,
+            'normalMatrix'
+        );
         this.gl.uniformMatrix4fv(normalMatrixLoc, false, normalMatrix);
         // texture
-        if (this.textureReady) {
-            const diffuseMapLoc = this.gl.getUniformLocation(this.program, 'diffuseMap');
+        if (this.texture.ready) {
+            const textureLoc = this.gl.getUniformLocation(
+                this.program,
+                'texture'
+            );
             this.gl.activeTexture(this.gl.TEXTURE0);
             this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
-            this.gl.uniform1i(diffuseMapLoc, 0);
+            this.gl.uniform1i(textureLoc, 0);
         }
         //
-        this.gl.drawArrays(this.drawMode, 0, this.vertexCount);
+        this.gl.drawArrays(this.drawMode, 0, this.buffer.vertexCount);
     }
 
     private makeProgram(): WebGLProgram {
         const program = this.gl.createProgram();
         const vertSource = `
-        attribute vec4 position;
-        attribute vec3 normal;
-        attribute vec2 uv;
+            attribute vec4 position;
+            attribute vec3 normal;
+            attribute vec2 uv;
 
-        varying vec3 fragNormal;
-        varying vec2 fragUV;
+            varying vec3 fragNormal;
+            varying vec2 fragUV;
 
-        uniform float elapsedTime;
-        uniform mat4 projectionMatrix;
-        uniform mat4 cameraMatrix;
-        uniform mat4 modelMatrix;
-        void main() {
-            fragNormal = normal;
-            fragUV = uv;
-            gl_Position = projectionMatrix * cameraMatrix * modelMatrix * position;
-        }
+            uniform float elapsedTime;
+            uniform mat4 projectionMatrix;
+            uniform mat4 cameraMatrix;
+            uniform mat4 modelMatrix;
+            void main() {
+                fragNormal = normal;
+                fragUV = uv;
+                gl_Position = projectionMatrix * cameraMatrix * modelMatrix * position;
+            }
         `;
         const vertShader = this.createShader(vertSource, this.gl.VERTEX_SHADER);
         const fragSource = `
-        precision highp float;
+            precision highp float;
 
-        varying vec3 fragNormal;
-        varying vec2 fragUV;
+            varying vec3 fragNormal;
+            varying vec2 fragUV;
 
-        uniform float elapsedTime;
-        uniform vec3 lightDirection;
-        uniform mat4 normalMatrix;
+            uniform float elapsedTime;
+            uniform vec3 lightDirection;
+            uniform mat4 normalMatrix;
 
-        uniform sampler2D diffuseMap;
+            uniform sampler2D texture;
 
-        void main(void) {
-            vec3 normalizedLightDirection = normalize(-lightDirection);
-            vec3 transformedNormal = normalize((normalMatrix * vec4(fragNormal, 1.0)).xyz);
+            void main(void) {
+                vec3 normalizedLightDirection = normalize(-lightDirection);
+                vec3 transformedNormal = normalize((normalMatrix * vec4(fragNormal, 1.0)).xyz);
 
-            float diffuseStrength = dot(normalizedLightDirection, transformedNormal);
-            diffuseStrength = clamp(diffuseStrength, 0.0, 1.0);
-            vec3 diffuse = vec3(diffuseStrength);
+                float diffuseStrength = dot(normalizedLightDirection, transformedNormal);
+                diffuseStrength = clamp(diffuseStrength, 0.0, 1.0);
+                vec3 diffuse = vec3(diffuseStrength);
 
-            vec3 ambient = vec3(0.3);
+                vec3 ambient = vec3(0.3);
 
-            vec4 finalLightStrength = vec4(ambient + diffuse, 1.0);
-            vec4 materialColor = texture2D(diffuseMap, fragUV);
+                vec4 finalLightStrength = vec4(ambient + diffuse, 1.0);
+                vec4 materialColor = texture2D(texture, fragUV);
 
-            gl_FragColor = finalLightStrength * materialColor;
-        }
+                gl_FragColor = finalLightStrength * materialColor;
+            }
         `;
         const fragShader = this.createShader(fragSource, this.gl.FRAGMENT_SHADER);
         this.gl.attachShader(program, vertShader);
@@ -288,19 +354,20 @@ export class App {
         return shader;
     }
 
-    private createBuffer(data: number[]): WebGLBuffer {
-        const buffer = this.gl.createBuffer();
+    private createBuffer(data: number[], vertexCount: number): VertexBuffer {
+        const buffer = this.gl.createBuffer() as VertexBuffer;
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
         this.gl.bufferData(
             this.gl.ARRAY_BUFFER,
             new Float32Array(data),
             this.gl.STATIC_DRAW
         );
+        buffer.vertexCount = vertexCount;
         return buffer;
     }
 
     private createTexture(): void {
-        this.texture = this.gl.createTexture();
+        this.texture = this.gl.createTexture() as AsyncTexture;
         const image = new Image();
         // image.crossOrigin = '';
         image.onload = (e) => {
@@ -309,7 +376,7 @@ export class App {
             this.gl.texParameterf(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
             this.gl.texParameterf(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
             this.gl.bindTexture(this.gl.TEXTURE_2D, null);
-            this.textureReady = true;
+            this.texture.ready = true;
         };
         image.src = './assets/wood.png';
     }
