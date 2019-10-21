@@ -28,8 +28,7 @@ export class App {
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
         this.canvasEl = canvas;
-        this.gl = canvas.getContext('webgl')
-            || canvas.getContext('experimental-webgl');
+        this.gl = canvas.getContext('webgl');
         this.resizeCanvas(null);
         this.infoEl = document.getElementById('glInfo');
         //
