@@ -29,7 +29,7 @@ export default {
         }),
         css({ output: './dist/bundle.css' }),
         alias({}),
-        nodeResolve({ mainFields: ['module', 'jsnext:main', 'main'] }),
+        nodeResolve({ mainFields: ['module', 'main'] }),
         commonjs({
             include: []
         }),
