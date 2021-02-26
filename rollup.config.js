@@ -21,10 +21,7 @@ export default {
     treeshake: production,
     external: [],
     plugins: [
-        typescript({
-            tsconfig: 'tsconfig.json',
-            sourceMap: !production
-        }),
+        typescript({ tsconfig: 'tsconfig.json', sourceMap: !production }),
         css({ output: 'main.css' }),
         alias({}),
         nodeResolve({ mainFields: ['module', 'main'] }),
