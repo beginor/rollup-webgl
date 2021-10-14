@@ -3,7 +3,12 @@ import { mat4, vec3 } from 'gl-matrix';
 declare type AsyncTexture = WebGLTexture & { ready: boolean; };
 declare type VertexBuffer = WebGLBuffer & { vertexCount: number; };
 
+import './app.scss';
+
 export class App {
+
+    /** app title */
+    public title = 'Hello, Rollup !';
 
     private gl: WebGLRenderingContext;
     private canvasEl: HTMLCanvasElement;
@@ -21,10 +26,10 @@ export class App {
     private collectedFrameDuration = 0;
     private collectedFrameCount = 0;
 
-    constructor() { }
+    constructor(private container: HTMLElement) { }
 
     public run(): void {
-        const canvas = document.getElementById('glCanvas') as HTMLCanvasElement;
+        const canvas = this.container as HTMLCanvasElement;
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
         this.canvasEl = canvas;
